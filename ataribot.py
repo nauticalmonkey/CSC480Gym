@@ -1,6 +1,7 @@
 import gym
 import random
 
+import pickle
 import numpy as np
 
 from state_discretizer import discretize_state
@@ -23,6 +24,7 @@ nummberofepisodes = 20
 
 
 def main():
+    q_map = get_q_map('qmap.pickle')
     environment = gym.make('LunarLander-v2')  # create the game
 
     print('State space: ', environment.observation_space)
@@ -44,21 +46,24 @@ def main():
 
         environment.reset()
         episode_reward = 0
-        prev_observation = None
+        state = None
         while True:
             environment.render()
+            # action = policy_function(q_map, state)
             action = environment.action_space.sample()
-            observation, reward, done, info = environment.step(action)  # preform random action
+            newstate, reward, done, info = environment.step(action)  # preform random action
             episode_reward += reward
-            observations.append(observation)
-            disc_obs.append(discretize_state(observation))
+            observations.append(newstate)
+            disc_obs.append(discretize_state(newstate))
             if done:
                 print('Reward: %d' % episode_reward)
                 rewards.append(episode_reward)
                 break
 
             #Update map here
-            prev_observation = observation
+            if state is not None:
+                update_q_map(q_map, state, action, reward, newstate)
+            state = newstate
 
     print('Average reward: %.2f' % (sum(rewards) / len(rewards)))
     print('Max observations: ', (np.array(observations).max(initial=float('-inf'), axis=0)))
@@ -67,7 +72,31 @@ def main():
     print('Min observations: ', (np.array(disc_obs).min(initial=float('inf'), axis=0)))
 
 
-def init_q_map(environment):
+# Returns an action for a state
+def policy_function(q_map, state):
+    util_max = float('-inf')
+    action = None
+    for i in range(0, 4):
+        util = q_map((state, i))
+        if util > util_max:
+            util_max = util
+            action = i
+
+    return action
+
+
+
+def get_q_map(path):
+    try:
+        with open(path, 'r') as file:
+            q_map = pickle.load(file)
+    except FileNotFoundError:
+        q_map = init_q_map()
+
+    return q_map
+
+
+def init_q_map():
     return {((x / 10, y / 10, x_sp / 10, y_sp / 10, ang / 10, ang_sp, l, r), a): 0
             for x in range(-10, 12, 2)
             for y in range(-10, 12, 2)
@@ -77,22 +106,22 @@ def init_q_map(environment):
             for ang_sp in range(-5, 6)
             for l in {0, 1}
             for r in {0, 1}
-            for a in environment.action_space}
+            for a in range(0, 4)}
 
 #state you came from, action you took, reward that you got from doing it
 def update_q_map(q_map, state, action, reward, newstate):
     learning_rate = .5
     discount_factor = .8
     val_map = (tuple(discretize_state(state)), action)
-    q_map[val_map]=  q_map[val_map]+ learning_rate * reward + discout_factor * max(newstate) -q_map(val_map)
+    q_map[val_map] = q_map[val_map] + learning_rate * (reward + discount_factor * future_max(q_map, newstate) - q_map(val_map))
 
 
-def future_max(q_map,state):
-    max= -inf
-    for i in range(0,4)
-        if q_map(state,i) >max
-            max = q_map(state,i)
-    return max
+def future_max(q_map, state):
+    f_max = float('-inf')
+    for i in range(0, 4):
+        if q_map(state, i) > f_max:
+            f_max = q_map(state, i)
+    return f_max
 
 
 
