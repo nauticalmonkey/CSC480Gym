@@ -16,8 +16,17 @@ from gym.envs.box2d.lunar_lander import demo_heuristic_lander
 # s[6] 1 if first leg has contact, else 0
 # s[7] 1 if second leg has contact, else 0
 
-
-random.seed(52)
+"""
+Debug levels:
+    0: Minimal debug info
+        - Util after each run and average after all iterations
+    1: Q-map update info
+    2: Misc info
+        - State space and Action space info
+        - Min/max of observations by dimension
+"""
+DEBUG = 0
+RENDER = 1
 
 nummberofepisodes = 20
 
@@ -27,38 +36,37 @@ def main():
     q_map = get_q_map(path)
     environment = gym.make('LunarLander-v2')  # create the game
 
-    print('State space: ', environment.observation_space)
-    print(environment.observation_space.low)
-    print(environment.observation_space.high)
-    print('Action space: ', environment.action_space)
-
-    environment.seed(52)
+    if DEBUG > 1:
+        print('State space: ', environment.observation_space)
+        print(environment.observation_space.low)
+        print(environment.observation_space.high)
+        print('Action space: ', environment.action_space)
 
     rewards = []
     observations = []
-    disc_obs = []
+
+    policy = q_map_policy
 
     i = 0
-    gate = True
-    while gate:
+    loop = True
+    while loop:
         i += 1
     # for _ in range(nummberofepisodes):
         # episode_reward = demo_heuristic_lander(environment, render=True)
         # rewards.append(episode_reward)
-
+        environment.seed(0)
         environment.reset()
         episode_reward = 0
         state = None
         while True:
-            # environment.render()
-            action = policy_function(q_map, state)
-            # action = environment.action_space.sample()
-            newstate, reward, done, info = environment.step(action)  # perform random action
+            if RENDER:
+                environment.render()
+            action = policy(q_map, state)
+            newstate, reward, done, info = environment.step(action)
             episode_reward += reward
             observations.append(newstate)
-            disc_obs.append(discretize_state(newstate))
             if done:
-                # print('Reward: %d' % episode_reward)
+                print('Reward: %d' % episode_reward)
                 rewards.append(episode_reward)
                 break
 
@@ -68,14 +76,21 @@ def main():
 
     save_q_map(path, q_map)
     print('Average reward: %.2f' % (sum(rewards) / len(rewards)))
-    print('Max observations: ', (np.array(observations).max(initial=float('-inf'), axis=0)))
-    print('Min observations: ', (np.array(observations).min(initial=float('inf'), axis=0)))
-    print('Max observations: ', (np.array(disc_obs).max(initial=float('-inf'), axis=0)))
-    print('Min observations: ', (np.array(disc_obs).min(initial=float('inf'), axis=0)))
+
+    if DEBUG > 2:
+        print('Max observations: ',
+              (np.array(observations).max(initial=float('-inf'), axis=0)))
+        print('Min observations: ',
+              (np.array(observations).min(initial=float('inf'), axis=0)))
+
+
+# returns a random action
+def random_policy(_, __):
+    return random.randint(0, 3)
 
 
 # Returns an action for a state
-def policy_function(q_map, state):
+def q_map_policy(q_map, state):
     if state is None:
         return 0  # If state unknown perform no-op action
 
@@ -99,8 +114,8 @@ def get_q_map(path):
         with open(path, 'rb') as file:
             q_map = pickle.load(file)
     except FileNotFoundError:
-        q_map = init_q_map()
-        save_q_map(q_map, path)
+        q_map = dict()
+        # save_q_map(q_map, path)
 
     return q_map
 
@@ -136,19 +151,27 @@ def state_to_int(state, action):
                 + a * 11 * 11 * 21 * 21 * 11 * 11 * 2 * 2))
 
 
-def init_q_map():
-    return {i: 0 for i in range(157894956)}
-
-
 # state you came from, action you took, reward that you got from doing it
 def update_q_map(q_map, state, action, reward, newstate):
-    learning_rate = .5
-    discount_factor = .8
+    learn_rate = 0.5
+    discount = .8
     key = state_to_int(discretize_state(state), action)
     if key not in q_map:
         q_map[key] = 0
 
-    q_map[key] = q_map[key] + learning_rate * (reward + discount_factor * future_max(q_map, discretize_state(newstate)) - q_map[key])
+    util = q_map[key]
+    new_util = util + learn_rate * (reward + discount *
+                                    future_max(q_map,
+                                               discretize_state(
+                                                   newstate)) - util)
+
+    if DEBUG > 2:
+        print('State:', state, ', Action: ', action)
+        print('Old util:', util)
+        print('New util:', new_util)
+    if DEBUG > 1:
+        print('Delta: ', new_util - util)
+    q_map[key] = new_util
 
 
 def future_max(q_map, state):
