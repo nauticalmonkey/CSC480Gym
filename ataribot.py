@@ -76,6 +76,9 @@ def main():
 
 # Returns an action for a state
 def policy_function(q_map, state):
+    if state is None:
+        return 0  # If state unknown perform no-op action
+
     util_max = float('-inf')
     action = None
     for i in range(0, 4):
