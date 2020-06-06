@@ -38,7 +38,11 @@ def main():
     observations = []
     disc_obs = []
 
-    for _ in range(nummberofepisodes):
+    i = 0
+    gate = True
+    while gate:
+        i += 1
+    # for _ in range(nummberofepisodes):
         # episode_reward = demo_heuristic_lander(environment, render=True)
         # rewards.append(episode_reward)
 
@@ -46,15 +50,15 @@ def main():
         episode_reward = 0
         state = None
         while True:
-            environment.render()
-            # action = policy_function(q_map, state)
-            action = environment.action_space.sample()
+            # environment.render()
+            action = policy_function(q_map, state)
+            # action = environment.action_space.sample()
             newstate, reward, done, info = environment.step(action)  # perform random action
             episode_reward += reward
             observations.append(newstate)
             disc_obs.append(discretize_state(newstate))
             if done:
-                print('Reward: %d' % episode_reward)
+                # print('Reward: %d' % episode_reward)
                 rewards.append(episode_reward)
                 break
 
@@ -75,7 +79,11 @@ def policy_function(q_map, state):
     util_max = float('-inf')
     action = None
     for i in range(0, 4):
-        util = q_map[state_to_int(state, i)]
+        key = state_to_int(state, i)
+        if key not in q_map:
+            q_map[key] = 0
+
+        util = q_map[key]
         if util > util_max:
             util_max = util
             action = i
@@ -134,13 +142,20 @@ def update_q_map(q_map, state, action, reward, newstate):
     learning_rate = .5
     discount_factor = .8
     key = state_to_int(discretize_state(state), action)
+    if key not in q_map:
+        q_map[key] = 0
+
     q_map[key] = q_map[key] + learning_rate * (reward + discount_factor * future_max(q_map, discretize_state(newstate)) - q_map[key])
 
 
 def future_max(q_map, state):
     f_max = float('-inf')
     for i in range(0, 4):
-        f_util = q_map[state_to_int(state, i)]
+        key = state_to_int(state, i)
+        if key not in q_map:
+            q_map[key] = 0
+
+        f_util = q_map[key]
         if f_util > f_max:
             f_max = f_util
     return f_max
