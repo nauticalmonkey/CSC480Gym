@@ -79,6 +79,24 @@ def init_q_map(environment):
             for r in {0, 1}
             for a in environment.action_space}
 
+#state you came from, action you took, reward that you got from doing it
+def update_q_map(q_map, state, action, reward, newstate):
+    learning_rate = .5
+    discount_factor = .8
+    val_map = (tuple(discretize_state(state)), action)
+    q_map[val_map]=  q_map[val_map]+ learning_rate * reward + discout_factor * max(newstate) -q_map(val_map)
+
+
+def future_max(q_map,state):
+    max= -inf
+    for i in range(0,4)
+        if q_map(state,i) >max
+            max = q_map(state,i)
+    return max
+
+
+
+
 # def q_function(q_map, state, action, reward):
 #     """
 #     Maps a state and an action to a utility. To get the utility function, given
