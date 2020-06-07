@@ -3,6 +3,7 @@ import random
 
 import pickle
 import numpy as np
+import heuristic as tester
 
 from state_discretizer import discretize_state
 from gym.envs.box2d.lunar_lander import demo_heuristic_lander
@@ -28,7 +29,7 @@ Debug levels:
 DEBUG = 0
 RENDER = 1
 
-nummberofepisodes = 20
+nummberofepisodes = 500
 
 
 def main():
@@ -48,16 +49,15 @@ def main():
     policy = q_map_policy
 
     i = 0
-    loop = True
-    while loop:
+    loop = True # my debugger is not as good so i cant break in
+    while i < nummberofepisodes:
         i += 1
     # for _ in range(nummberofepisodes):
         # episode_reward = demo_heuristic_lander(environment, render=True)
         # rewards.append(episode_reward)
         environment.seed(0)
-        environment.reset()
         episode_reward = 0
-        state = None
+        state = environment.reset()
         while True:
             if RENDER:
                 environment.render()
@@ -105,6 +105,9 @@ def q_map_policy(q_map, state):
         if util > util_max:
             util_max = util
             action = i
+    variation = random.randint(0,10)
+    if variation > 6:
+        action = random.randint(0,3)
 
     return action
 
