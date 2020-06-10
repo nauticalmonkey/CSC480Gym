@@ -27,9 +27,9 @@ Debug levels:
         - Min/max of observations by dimension
 """
 DEBUG = 0
-RENDER = 1
+RENDER = 0
 
-nummberofepisodes = 500
+nummberofepisodes = 100000
 
 
 def main():
@@ -92,7 +92,8 @@ def random_policy(_, __):
 # Returns an action for a state
 def q_map_policy(q_map, state):
     if state is None:
-        return 0  # If state unknown perform no-op action
+        print("WTF OMG")
+        return random.randint(0,3)  # If state unknown perform random action
 
     util_max = float('-inf')
     action = None
@@ -106,7 +107,7 @@ def q_map_policy(q_map, state):
             util_max = util
             action = i
     variation = random.randint(0,10)
-    if variation > 6:
+    if variation > 8:
         action = random.randint(0,3)
 
     return action

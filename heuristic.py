@@ -422,16 +422,17 @@ def heuristic(env, s):
 def demo_heuristic_lander(env, seed=None, render=False):
     path = 'qmap.pickle'
     q_map = trainee.get_q_map(path)
-    numeps = 30
+    numeps = 10000
     i = 0
 
     env.seed(seed)
     while i < numeps:
         i += 1
+        print(i)
         total_reward = 0
         steps = 0
         oldstate = env.reset()
-        while True:
+        while True and steps < 350:
             a = heuristic(env, oldstate)
 
             s, r, done, info = env.step(a)
@@ -451,6 +452,7 @@ def demo_heuristic_lander(env, seed=None, render=False):
         print(total_reward)
     
     trainee.save_q_map(path, q_map)
+    print("done!!!!!!")
     
     return total_reward
 
