@@ -422,7 +422,7 @@ def heuristic(env, s):
 def demo_heuristic_lander(env, seed=None, render=False):
     path = 'qmap.pickle'
     q_map = trainee.get_q_map(path)
-    numeps = 10000
+    numeps = 300000
     i = 0
 
     env.seed(seed)

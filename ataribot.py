@@ -29,7 +29,7 @@ Debug levels:
 DEBUG = 0
 RENDER = 0
 
-nummberofepisodes = 100000
+nummberofepisodes = 100
 
 
 def main():
