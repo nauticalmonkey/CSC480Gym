@@ -1,4 +1,5 @@
 # CSC480Gym
+Jon Lai (jlai12@calpoly.edu) and Justin Evans (jevans27@calpoly.edu)
 
 ## dqn.py
 Instruction to setup and run the deep-q-network agent for LunarLander.
@@ -21,7 +22,8 @@ Run the program using the following command:
 e.g.
 `python3 dqn.py eval -n 10 -f dqn.pickle`
 
-To run the program in evaluation mode using an agent saved in a file in the current directory named `dqn.pickle` for `10` iterations.
+To run the program in evaluation mode using an agent saved in a file in the 
+current directory named `dqn.pickle` for `10` iterations.
 
 Positional Arguments:
 * {train, eval}  Specify whether to run the agent in training or evaluation mode
