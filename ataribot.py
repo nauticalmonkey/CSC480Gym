@@ -157,14 +157,14 @@ def state_to_int(state, action):
 
 # state you came from, action you took, reward that you got from doing it
 def update_q_map(q_map, state, action, reward, newstate):
-    learn_rate = 0.5
+    learn_rate = 0.3
     discount = .8
     key = state_to_int(discretize_state(state), action)
     if key not in q_map:
         q_map[key] = 0
 
     util = q_map[key]
-    new_util = util + learn_rate * (reward + discount *
+    new_util = util*(1-learn_rate) + learn_rate * (reward + discount *
                                     future_max(q_map,
                                                discretize_state(
                                                    newstate)) - util)
