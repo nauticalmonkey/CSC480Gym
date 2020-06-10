@@ -1,11 +1,11 @@
 import pickle
 import random
+from argparse import ArgumentParser
 from collections import deque
-from typing import List
+from typing import List, Optional
 
 import gym
 import numpy as np
-from gym import Env
 from keras import Model, Sequential
 from keras.activations import relu, linear
 from keras.layers import Dense
@@ -16,7 +16,9 @@ class DQN:
     """
     A deep-Q-network based on Google DeepMind's architecture in
     "Human-level control through deep reinforcement learning"
-    (Mnih et. al. 2015). Uses an epsilon-greedy policy for selecting actions.
+    (Mnih et. al. 2015). Uses an epsilon-greedy policy for selecting actions and
+    trains by "remembering" states visited and replaying a sample of memory
+    on each iteration.
     """
 
     def __init__(self, action_space, state_space):
@@ -26,10 +28,10 @@ class DQN:
 
         # Model hyper-parameters
         self.epsilon = 1.0
-        self.epsilon_decay = .996
-        self.epsilon_min = .01
+        self.epsilon_decay = .995
+        self.epsilon_min = .1
         self.discount = .99
-        self.batch_size = 64
+        self.batch_size = 32
         self.learning_rate = 0.001
 
         # Implement memory as a deque (fast push/pop list)
@@ -84,7 +86,7 @@ class DQN:
         act_values = self.model.predict(state)
         return np.argmax(act_values[0])
 
-    def replay(self):
+    def replay(self) -> None:
         """
         Replay, or learning phase, updating the q-function approximator by the
         following process:
@@ -104,8 +106,6 @@ class DQN:
             5. Fit the model to the updated predictions.
 
             6. Lower randomness component of epsilon-greedy policy.
-
-        :return:
         """
 
         if len(self.memory) < self.batch_size:
@@ -152,7 +152,7 @@ class DQN:
             pickle.dump(self, file)
 
     @staticmethod
-    def load_dqn(filepath):
+    def load(filepath: str) -> 'DQN':
         """
         Load a saved DQN from disk.
 
@@ -164,72 +164,95 @@ class DQN:
             return pickle.load(file)
 
     @staticmethod
-    def get_agent(env: Env, filepath: str) -> 'DQN':
+    def get_agent(env: gym.Env, filepath: Optional[str]) -> 'DQN':
+        """
+        Get an agent from the given filepath if specified, otherwise construct a
+        new model given the environment.
+
+        :param env: The environment for constructing a new DQN
+        :param filepath: The filepath to the DQN to load
+        :return: A DQN model.
         """
 
-
-        :param env:
-        :param filepath:
-        :return:
-        """
-        try:
-            return DQN.load_dqn(filepath)
-        except FileNotFoundError:
+        if filepath is None:
             return DQN(env.action_space.n, env.observation_space.shape[0])
 
+        return DQN.load(filepath)
 
-def run_dqn(agent: DQN, env: Env, episodes: int, evaluate: bool) -> List[float]:
-    save = False
-    render = True
-    loss = []
+
+def run_dqn(agent: DQN, env: gym.Env, episodes: int, evaluate: bool,
+            save_path: Optional[str]) -> List[float]:
+    save = False  # Flags for altering execution control when debugging
+    render = False
+    state_space_shape = env.observation_space.shape[0]
+    rewards = []
 
     for e in range(episodes):
         state = env.reset()
-        state = np.reshape(state, (1, 8))
-        score = 0
-        max_steps = 3000
+        state = np.reshape(state, (1, state_space_shape))
+        episode_reward = 0
+        max_steps = 3000  # Guarantee episode termination
         for i in range(max_steps):
             action = agent.act(state, evaluate)
             if render or evaluate:
                 env.render()
             next_state, reward, done, _ = env.step(action)
-            score += reward
-            next_state = np.reshape(next_state, (1, 8))
+            episode_reward += reward
+            next_state = np.reshape(next_state, (1, state_space_shape))
             if not evaluate:
                 agent.remember(state, action, reward, next_state, done)
                 agent.replay()
 
             state = next_state
             if done:
-                print("episode: {}/{}, score: {}".format(e, episodes, score))
+                print(f"episode: {e + 1}/{episodes}, score: {episode_reward}")
                 break
-        loss.append(score)
+        rewards.append(episode_reward)
 
-        if save:
-            agent.save('dqn.pickle')
+        if save and save_path is not None:
+            agent.save(save_path)
 
-        # Average score of last 100 episode
-        is_solved = np.mean(loss[-100:])
-        if not evaluate and is_solved > 200:
-            print('\n Task Completed! \n')
-            agent.save('dqn.pickle')
-            break
-        print("Average over last 100 episode: {0:.2f} \n".format(is_solved))
-    return loss
+        # Average score of last 100 episode, if it is over 200, we win!
+        is_solved = np.mean(rewards[-100:])
+        eval_size = min(e + 1, 100)
+        print(f"Average over last {eval_size} episode: {is_solved:.2f}")
+
+        if eval_size >= 100 and is_solved > 200:
+            print('Game Solved!')
+
+    if not evaluate and save_path is not None:
+        agent.save(save_path)
+
+    return rewards
 
 
-def main():
+def build_arg_parser() -> ArgumentParser:
+    parser = ArgumentParser(description='Train or evaluate a deep-queue '
+                                        'network on LunarLander.')
+    parser.add_argument('mode', choices=['train', 'eval'],
+                        help='Specify whether to run the agent in training '
+                             'or evaluation mode')
+    parser.add_argument('-n', '--number', type=int, default=100,
+                        help='Number of iterations to run the agent')
+    parser.add_argument('-f', '--filepath', type=str, default=None,
+                        help='The path to save/load the agent pickle')
+    return parser
+
+
+def main() -> None:
     env = gym.make('LunarLander-v2')
-    env.seed(0)
-    np.random.seed(0)
+    # env.seed(0)
+    # np.random.seed(0)
 
-    filepath = 'dqn.pickle'
+    parser = build_arg_parser()
+    args = parser.parse_args()
+
+    filepath = args.filepath
+    episodes = args.number
+    evaluate = args.mode == 'eval'
+
     agent = DQN.get_agent(env, filepath)
-    print(env.observation_space)
-    print(env.action_space)
-    episodes = 400
-
-    run_dqn(agent, env, episodes, True)
+    run_dqn(agent, env, episodes, evaluate, filepath)
 
 
 if __name__ == '__main__':
